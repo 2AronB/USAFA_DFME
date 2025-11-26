@@ -6,7 +6,7 @@ This document outlines a lightweight approach to grading in-class CAD quizzes by
 
 ## Web app prototype: local geometry overlap grader
 
-`index.html` is a static, client-side tool that lets you load an instructor reference mesh and a student mesh (STL or OBJ), auto-aligns/normalizes scale, computes a symmetric distance score, and highlights high-error regions in red on the overlapped view.
+`index.html` is a static, client-side tool (currently **v0.2.0**, shown in the page header) that lets you load an instructor reference mesh and a student mesh (STL or OBJ), auto-aligns/normalizes scale, computes a symmetric distance score, and highlights high-error regions in red on the overlapped view.
 
 - **Privacy-friendly:** Files never leave the browser; everything runs locally with WebGL and WASM libraries loaded from CDNs.
 - **Supported formats:** STL and OBJ for now. Convert STEP to STL/OBJ using your CAD tool or `freecad-cli`/`occ` before loading.

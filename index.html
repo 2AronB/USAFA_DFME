@@ -20,6 +20,9 @@
       padding: 16px 24px;
       background: #161a23;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
     main {
@@ -47,6 +50,18 @@
     h1, h2, h3 {
       margin: 0 0 12px;
       color: #f2f5ff;
+    }
+
+    .version {
+      align-self: flex-start;
+      padding: 4px 10px;
+      background: #242a36;
+      border: 1px solid #2f3544;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: #c9d4ff;
     }
 
     p {
@@ -136,11 +151,12 @@
     }
   </style>
 </head>
-<body>
-  <header>
-    <h1>CAD Geometry Overlap Grader</h1>
-    <p>Upload your reference model and a student submission (STL or OBJ). The viewer will auto-align, score the shape difference, and highlight mismatches in red.</p>
-  </header>
+  <body>
+    <header>
+      <div class="version" aria-label="App version">v0.2.0</div>
+      <h1>CAD Geometry Overlap Grader</h1>
+      <p>Upload your reference model and a student submission (STL or OBJ). The viewer will auto-align, score the shape difference, and highlight mismatches in red.</p>
+    </header>
 
   <main>
     <section class="panel">
