@@ -6,10 +6,10 @@ This document outlines a lightweight approach to grading in-class CAD quizzes by
 
 ## Web app prototype: local geometry overlap grader
 
-`index.html` is a static, client-side tool (currently **v0.2.1**, shown in the page header) that lets you load an instructor reference mesh and a student mesh (STL or OBJ), auto-aligns/normalizes scale, computes a symmetric distance score, and highlights high-error regions in red on the overlapped view.
+`index.html` is a static, client-side tool (currently **v0.2.2**, shown in the page header) that lets you load an instructor reference mesh and a student mesh (STL or OBJ), auto-aligns/normalizes scale, computes a symmetric distance score, and highlights high-error regions in red on the overlapped view.
 
-- **Privacy-friendly:** Files never leave the browser; everything runs locally with WebGL and WASM libraries loaded from CDNs.
-- **Network hint:** The page dynamically loads Three.js and BVH helpers. If the button stays disabled, check the console for CDN/network errors.
+- **Privacy-friendly:** Files never leave the browser; everything runs locally with WebGL and WASM libraries loaded from CDNs or an optional `/libs` folder.
+- **Network hint:** The page now cycles through multiple CDNs (jsDelivr, unpkg, cdnjs + Skypack) and will also try local files under `/libs`. If the button stays disabled, check the console/status panel for which sources failed.
 - **Supported formats:** STL and OBJ for now. Convert STEP to STL/OBJ using your CAD tool or `freecad-cli`/`occ` before loading.
 - **Output:** A percent difference (lower is better), average and max symmetric distance, and a 3D overlay showing mismatched points in red.
 
@@ -18,6 +18,16 @@ This document outlines a lightweight approach to grading in-class CAD quizzes by
 2. Open `index.html` directly in a modern browser (Chrome/Edge/Firefox). No build step is required.
 3. Drop/upload your reference and student files (STL/OBJ). The **Compare geometry** button enables once both are present. A tiny sample mesh (`ARD06004-25 Camera Cover.stl`) is included for smoke testing.
 4. Click **Compare geometry** to compute the symmetric distance score and visualize mismatches.
+
+Offline / air-gapped use:
+- Place the following files in a local `libs/` folder next to `index.html` (mirroring the Three.js folder structure):
+  - `three.module.js`
+  - `examples/jsm/controls/OrbitControls.js`
+  - `examples/jsm/loaders/STLLoader.js`
+  - `examples/jsm/loaders/OBJLoader.js`
+  - `examples/jsm/utils/BufferGeometryUtils.js`
+  - `three-mesh-bvh.module.js` (from `three-mesh-bvh`)
+- The page will try the local copies first, then CDNs. If a source fails, the status box lists each attempted source.
 
 Troubleshooting:
 - If the button does not enable, ensure JavaScript is allowed and both file inputs show a selected file (some browsers only fire `change` when a new file is picked).

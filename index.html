@@ -160,7 +160,7 @@
 </head>
   <body>
     <header>
-      <div class="version" aria-label="App version">v0.2.1</div>
+      <div class="version" aria-label="App version">v0.2.2</div>
       <h1>CAD Geometry Overlap Grader</h1>
       <p>Upload your reference model and a student submission (STL or OBJ). The viewer will auto-align, score the shape difference, and highlight mismatches in red.</p>
     </header>
@@ -192,6 +192,16 @@
       <div id="viewer"></div>
     </section>
   </main>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./libs/three.module.js",
+        "three/examples/": "./libs/examples/",
+        "three-mesh-bvh": "./libs/three-mesh-bvh.module.js"
+      }
+    }
+  </script>
 
   <script type="module">
     let THREE, OrbitControls, STLLoader, OBJLoader, BufferGeometryUtils;
@@ -232,31 +242,86 @@
       .catch(err => {
         console.error('Failed to load 3D libraries', err);
         libraryFailed = true;
-        statusEl.textContent = 'Unable to load 3D libraries. Check your network connection and reload the page.';
+        statusEl.textContent = `Unable to load 3D libraries. ${err?.message || 'Check your network connection and reload the page.'}`;
         compareBtn.disabled = true;
       });
 
     async function loadLibraries() {
       statusEl.textContent = 'Loading 3D libraries…';
-      const [threeMod, orbitMod, stlMod, objMod, utilsMod, bvhMod] = await Promise.all([
-        import('https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js'),
-        import('https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/OrbitControls.js'),
-        import('https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/loaders/STLLoader.js'),
-        import('https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/loaders/OBJLoader.js'),
-        import('https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/utils/BufferGeometryUtils.js'),
-        import('https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.6.10/build/index.module.js')
-      ]);
 
-      THREE = threeMod;
-      ({ OrbitControls } = orbitMod);
-      ({ STLLoader } = stlMod);
-      ({ OBJLoader } = objMod);
-      BufferGeometryUtils = utilsMod;
-      ({ MeshBVH, acceleratedRaycast, computeBoundsTree, disposeBoundsTree } = bvhMod);
+      const sources = [
+        {
+          label: 'local /libs folder',
+          three: './libs/three.module.js',
+          orbit: './libs/examples/jsm/controls/OrbitControls.js',
+          stl: './libs/examples/jsm/loaders/STLLoader.js',
+          obj: './libs/examples/jsm/loaders/OBJLoader.js',
+          utils: './libs/examples/jsm/utils/BufferGeometryUtils.js',
+          bvh: './libs/three-mesh-bvh.module.js'
+        },
+        {
+          label: 'jsDelivr',
+          three: 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js',
+          orbit: 'https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/OrbitControls.js',
+          stl: 'https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/loaders/STLLoader.js',
+          obj: 'https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/loaders/OBJLoader.js',
+          utils: 'https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/utils/BufferGeometryUtils.js',
+          bvh: 'https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.6.10/build/index.module.js'
+        },
+        {
+          label: 'unpkg',
+          three: 'https://unpkg.com/three@0.164.1/build/three.module.js',
+          orbit: 'https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js',
+          stl: 'https://unpkg.com/three@0.164.1/examples/jsm/loaders/STLLoader.js',
+          obj: 'https://unpkg.com/three@0.164.1/examples/jsm/loaders/OBJLoader.js',
+          utils: 'https://unpkg.com/three@0.164.1/examples/jsm/utils/BufferGeometryUtils.js',
+          bvh: 'https://unpkg.com/three-mesh-bvh@0.6.10/build/index.module.js'
+        },
+        {
+          label: 'cdnjs (three only) + Skypack (BVH)',
+          three: 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.164.1/three.module.js',
+          orbit: 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.164.1/examples/jsm/controls/OrbitControls.js',
+          stl: 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.164.1/examples/jsm/loaders/STLLoader.js',
+          obj: 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.164.1/examples/jsm/loaders/OBJLoader.js',
+          utils: 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.164.1/examples/jsm/utils/BufferGeometryUtils.js',
+          bvh: 'https://cdn.skypack.dev/three-mesh-bvh@0.6.10?min'
+        }
+      ];
 
-      THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
-      THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
-      THREE.Mesh.prototype.raycast = acceleratedRaycast;
+      const errors = [];
+
+      for (const source of sources) {
+        try {
+          statusEl.textContent = `Loading 3D libraries from ${source.label}…`;
+          const [threeMod, orbitMod, stlMod, objMod, utilsMod, bvhMod] = await Promise.all([
+            import(source.three),
+            import(source.orbit),
+            import(source.stl),
+            import(source.obj),
+            import(source.utils),
+            import(source.bvh)
+          ]);
+
+          THREE = threeMod;
+          ({ OrbitControls } = orbitMod);
+          ({ STLLoader } = stlMod);
+          ({ OBJLoader } = objMod);
+          BufferGeometryUtils = utilsMod;
+          ({ MeshBVH, acceleratedRaycast, computeBoundsTree, disposeBoundsTree } = bvhMod);
+
+          THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+          THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+          THREE.Mesh.prototype.raycast = acceleratedRaycast;
+
+          statusEl.textContent = `3D libraries loaded from ${source.label}. Select two files to compare.`;
+          return;
+        } catch (err) {
+          console.warn(`Failed to load 3D libraries from ${source.label}`, err);
+          errors.push(`${source.label}: ${err?.message || err}`);
+        }
+      }
+
+      throw new Error(`All library sources failed. Tried: ${errors.join(' | ')}`);
     }
 
     function initScene() {
@@ -311,7 +376,7 @@
 
       if (libraryFailed) {
         compareBtn.disabled = true;
-        if (!keepStatus) statusEl.textContent = 'Unable to load 3D libraries. Check your network connection and reload the page.';
+        if (!keepStatus) statusEl.textContent = 'Unable to load 3D libraries. See console/status for source attempts.';
         return;
       }
 
