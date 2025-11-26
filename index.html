@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CAD Geometry Overlap Grader</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #0f1116;
+      color: #e6e9f0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 16px 24px;
+      background: #161a23;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    main {
+      flex: 1;
+      padding: 20px 24px 32px;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 18px;
+    }
+
+    @media (max-width: 1024px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: #161a23;
+      border: 1px solid #242a36;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 12px;
+      color: #f2f5ff;
+    }
+
+    p {
+      margin: 0 0 12px;
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      font-weight: 600;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      background: #0f1116;
+      color: #e6e9f0;
+      border: 1px dashed #3b4250;
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    button {
+      margin-top: 14px;
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(90deg, #4b9fff, #7b63ff);
+      color: #0f1116;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 150ms ease, box-shadow 150ms ease;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(75, 159, 255, 0.35);
+    }
+
+    #status {
+      margin-top: 12px;
+      padding: 10px;
+      background: #10131a;
+      border: 1px solid #1d2330;
+      border-radius: 8px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      min-height: 52px;
+    }
+
+    #result {
+      font-size: 18px;
+      font-weight: 700;
+      margin-top: 12px;
+    }
+
+    #viewer {
+      width: 100%;
+      height: 640px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #1d2330;
+      background: #0d0f15;
+    }
+
+    .legend {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      font-size: 14px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid #0f1116;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CAD Geometry Overlap Grader</h1>
+    <p>Upload your reference model and a student submission (STL or OBJ). The viewer will auto-align, score the shape difference, and highlight mismatches in red.</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Upload</h2>
+      <p>Files remain local to your browser; nothing is uploaded to a server. For best results, keep meshes &lt; 5–10&nbsp;MB and avoid extremely dense tessellations.</p>
+      <label for="refFile">Reference model (instructor)</label>
+      <input id="refFile" type="file" accept=".stl,.obj" />
+
+      <label for="studentFile">Student submission</label>
+      <input id="studentFile" type="file" accept=".stl,.obj" />
+
+      <button id="compareBtn" disabled>Compare geometry</button>
+      <div id="result">Difference: –</div>
+      <div id="status">Waiting for files…</div>
+      <div class="legend">
+        <div class="swatch" style="background:#7b63ff;"></div> Reference
+        <div class="swatch" style="background:#52d2ff;"></div> Student
+        <div class="swatch" style="background:#ff4d6d;"></div> High mismatch points
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Visualizer</h2>
+      <div id="viewer"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/OrbitControls.js';
+    import { STLLoader } from 'https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/loaders/STLLoader.js';
+    import { OBJLoader } from 'https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/loaders/OBJLoader.js';
+    import * as BufferGeometryUtils from 'https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/utils/BufferGeometryUtils.js';
+    import { MeshBVH, acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'https://unpkg.com/three-mesh-bvh@0.6.10/build/index.module.js';
+
+    THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+    THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+    THREE.Mesh.prototype.raycast = acceleratedRaycast;
+
+    const viewerEl = document.getElementById('viewer');
+    const statusEl = document.getElementById('status');
+    const resultEl = document.getElementById('result');
+    const compareBtn = document.getElementById('compareBtn');
+
+    let scene, camera, renderer, controls;
+    let refMesh, studentMesh, mismatchPoints;
+
+    initScene();
+
+    const refInput = document.getElementById('refFile');
+    const studentInput = document.getElementById('studentFile');
+
+    refInput.addEventListener('change', updateButtonState);
+    studentInput.addEventListener('change', updateButtonState);
+    compareBtn.addEventListener('click', handleCompare);
+
+    function initScene() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0d0f15);
+      camera = new THREE.PerspectiveCamera(60, viewerEl.clientWidth / viewerEl.clientHeight, 0.1, 5000);
+      camera.position.set(3, 2, 3);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(viewerEl.clientWidth, viewerEl.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      viewerEl.appendChild(renderer.domElement);
+
+      const light = new THREE.DirectionalLight(0xffffff, 1.1);
+      light.position.set(4, 6, 3);
+      scene.add(light, new THREE.AmbientLight(0xffffff, 0.25));
+
+      const grid = new THREE.GridHelper(10, 20, 0x263045, 0x1b2332);
+      grid.material.opacity = 0.35;
+      grid.material.transparent = true;
+      scene.add(grid);
+
+      const axes = new THREE.AxesHelper(1.25);
+      axes.material.depthTest = false;
+      scene.add(axes);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+
+      window.addEventListener('resize', onResize);
+      animate();
+    }
+
+    function onResize() {
+      camera.aspect = viewerEl.clientWidth / viewerEl.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(viewerEl.clientWidth, viewerEl.clientHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    function updateButtonState() {
+      compareBtn.disabled = !(refInput.files.length && studentInput.files.length);
+      statusEl.textContent = compareBtn.disabled ? 'Waiting for files…' : 'Ready to compare.';
+    }
+
+    async function handleCompare() {
+      const refFile = refInput.files[0];
+      const studentFile = studentInput.files[0];
+      if (!refFile || !studentFile) return;
+
+      statusEl.textContent = 'Parsing meshes…';
+      compareBtn.disabled = true;
+
+      try {
+        const [refGeom, studentGeom] = await Promise.all([
+          loadGeometry(refFile),
+          loadGeometry(studentFile)
+        ]);
+
+        if (!refGeom || !studentGeom) {
+          statusEl.textContent = 'Unsupported file type. Use STL or OBJ.';
+          compareBtn.disabled = false;
+          return;
+        }
+
+        clearMeshes();
+        const normalized = normalizePair(refGeom, studentGeom);
+        const refMaterial = new THREE.MeshPhongMaterial({ color: 0x7b63ff, flatShading: true, transparent: true, opacity: 0.55 });
+        const studentMaterial = new THREE.MeshPhongMaterial({ color: 0x52d2ff, flatShading: true, transparent: true, opacity: 0.7 });
+
+        refMesh = new THREE.Mesh(normalized.reference, refMaterial);
+        studentMesh = new THREE.Mesh(normalized.student, studentMaterial);
+        scene.add(refMesh, studentMesh);
+
+        focusCamera(refMesh);        
+
+        statusEl.textContent = 'Building acceleration structures…';
+        normalized.reference.computeBoundsTree();
+        normalized.student.computeBoundsTree();
+
+        statusEl.textContent = 'Computing overlap…';
+        const diff = computeDifference(normalized.reference, normalized.student);
+        renderMismatchPoints(diff);
+
+        const percent = (diff.percent * 100).toFixed(2);
+        resultEl.textContent = `Difference: ${percent}% (lower is better)`;
+        statusEl.textContent = `Average symmetric distance: ${diff.avgDistance.toFixed(3)} units. Max: ${diff.maxDistance.toFixed(3)}.`;
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'Error while processing meshes. See console for details.';
+      } finally {
+        compareBtn.disabled = false;
+      }
+    }
+
+    function clearMeshes() {
+      [refMesh, studentMesh, mismatchPoints].forEach(obj => {
+        if (obj) scene.remove(obj);
+      });
+      refMesh = studentMesh = mismatchPoints = null;
+    }
+
+    async function loadGeometry(file) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      const arrayBuffer = await file.arrayBuffer();
+
+      if (ext === 'stl') {
+        const loader = new STLLoader();
+        return loader.parse(arrayBuffer);
+      }
+
+      if (ext === 'obj') {
+        const text = new TextDecoder().decode(arrayBuffer);
+        const loader = new OBJLoader();
+        const obj = loader.parse(text);
+        let combined;
+        obj.traverse(child => {
+          if (child.isMesh) {
+            const geom = child.geometry.clone().toNonIndexed();
+            combined = combined ? BufferGeometryUtils.mergeBufferGeometries([combined, geom]) : geom;
+          }
+        });
+        return combined;
+      }
+      return null;
+    }
+
+    function normalizePair(refGeom, studentGeom) {
+      const ref = refGeom.toNonIndexed();
+      const student = studentGeom.toNonIndexed();
+      ref.computeVertexNormals();
+      student.computeVertexNormals();
+
+      const refBox = new THREE.Box3().setFromBufferAttribute(ref.getAttribute('position'));
+      const studentBox = new THREE.Box3().setFromBufferAttribute(student.getAttribute('position'));
+
+      const refSize = new THREE.Vector3();
+      const studentSize = new THREE.Vector3();
+      refBox.getSize(refSize);
+      studentBox.getSize(studentSize);
+
+      const refCenter = new THREE.Vector3();
+      const studentCenter = new THREE.Vector3();
+      refBox.getCenter(refCenter);
+      studentBox.getCenter(studentCenter);
+
+      const scale = refSize.length() === 0 || studentSize.length() === 0 ? 1 : refSize.length() / studentSize.length();
+
+      // Center both meshes at the origin, then scale the student mesh to match the overall reference size.
+      ref.translate(refCenter.clone().multiplyScalar(-1));
+      student.translate(studentCenter.clone().multiplyScalar(-1));
+      student.scale(new THREE.Vector3(scale, scale, scale));
+
+      return { reference: ref, student };
+    }
+
+    function computeDifference(refGeom, studentGeom) {
+      const refPos = refGeom.getAttribute('position');
+      const studentPos = studentGeom.getAttribute('position');
+
+      const refBox = new THREE.Box3().setFromBufferAttribute(refPos);
+      const studentBox = new THREE.Box3().setFromBufferAttribute(studentPos);
+      const combinedBox = refBox.clone().union(studentBox);
+      const diag = combinedBox.getSize(new THREE.Vector3()).length() || 1;
+
+      const sampleA = samplePositions(refPos, 4000);
+      const sampleB = samplePositions(studentPos, 4000);
+
+      const { distances: aToB, max: maxAB } = collectDistances(sampleA, studentGeom);
+      const { distances: bToA, max: maxBA } = collectDistances(sampleB, refGeom);
+
+      const allDistances = aToB.concat(bToA);
+      const avgDistance = allDistances.reduce((s, v) => s + v, 0) / allDistances.length;
+      const maxDistance = Math.max(maxAB, maxBA);
+
+      const percent = Math.min(1, (avgDistance / diag) * 10); // scale factor for readability
+      return { percent, avgDistance, maxDistance, diag, distancesA: aToB, distancesB: bToA, sampleA, sampleB };
+    }
+
+    function collectDistances(points, targetGeom) {
+      const tmp = new THREE.Vector3();
+      const closest = new THREE.Vector3();
+      const normal = new THREE.Vector3();
+      let max = 0;
+      const distances = [];
+
+      for (const p of points) {
+        tmp.copy(p);
+        targetGeom.boundsTree.closestPointToPoint(tmp, closest, normal);
+        const d = closest.distanceTo(tmp);
+        distances.push(d);
+        if (d > max) max = d;
+      }
+      return { distances, max };
+    }
+
+    function samplePositions(attr, maxSamples) {
+      const points = [];
+      const total = attr.count;
+      const step = Math.max(1, Math.floor(total / maxSamples));
+      const v = new THREE.Vector3();
+      for (let i = 0; i < total; i += step) {
+        v.fromBufferAttribute(attr, i);
+        points.push(v.clone());
+      }
+      return points;
+    }
+
+    function renderMismatchPoints(diff) {
+      const threshold = diff.diag * 0.01; // 1% of bounding box diagonal
+      const points = [];
+
+      diff.sampleA.forEach((p, i) => {
+        if (diff.distancesA[i] > threshold) points.push(p);
+      });
+      diff.sampleB.forEach((p, i) => {
+        if (diff.distancesB[i] > threshold) points.push(p);
+      });
+
+      if (!points.length) return;
+      const geom = new THREE.BufferGeometry();
+      const positions = new Float32Array(points.length * 3);
+      points.forEach((p, idx) => {
+        positions[idx * 3] = p.x;
+        positions[idx * 3 + 1] = p.y;
+        positions[idx * 3 + 2] = p.z;
+      });
+      geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const mat = new THREE.PointsMaterial({ color: 0xff4d6d, size: diff.diag * 0.003, sizeAttenuation: true });
+      mismatchPoints = new THREE.Points(geom, mat);
+      scene.add(mismatchPoints);
+    }
+
+    function focusCamera(mesh) {
+      const box = new THREE.Box3().setFromObject(mesh);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const radius = size.length() * 0.5;
+
+      const offset = radius / Math.tan((Math.PI * camera.fov) / 360);
+      const dir = new THREE.Vector3(1, 0.6, 1).normalize();
+      camera.position.copy(center).addScaledVector(dir, offset * 1.5);
+      camera.lookAt(center);
+      controls.target.copy(center);
+      controls.update();
+    }
+  </script>
+</body>
+</html>
