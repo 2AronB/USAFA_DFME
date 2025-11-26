@@ -20,9 +20,6 @@
       padding: 16px 24px;
       background: #161a23;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
     }
 
     main {
@@ -50,18 +47,6 @@
     h1, h2, h3 {
       margin: 0 0 12px;
       color: #f2f5ff;
-    }
-
-    .version {
-      align-self: flex-start;
-      padding: 4px 10px;
-      background: #242a36;
-      border: 1px solid #2f3544;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      color: #c9d4ff;
     }
 
     p {
@@ -151,12 +136,11 @@
     }
   </style>
 </head>
-  <body>
-    <header>
-      <div class="version" aria-label="App version">v0.2.0</div>
-      <h1>CAD Geometry Overlap Grader</h1>
-      <p>Upload your reference model and a student submission (STL or OBJ). The viewer will auto-align, score the shape difference, and highlight mismatches in red.</p>
-    </header>
+<body>
+  <header>
+    <h1>CAD Geometry Overlap Grader</h1>
+    <p>Upload your reference model and a student submission (STL or OBJ). The viewer will auto-align, score the shape difference, and highlight mismatches in red.</p>
+  </header>
 
   <main>
     <section class="panel">
@@ -204,17 +188,14 @@
     let scene, camera, renderer, controls;
     let refMesh, studentMesh, mismatchPoints;
 
+    initScene();
+
     const refInput = document.getElementById('refFile');
     const studentInput = document.getElementById('studentFile');
 
     refInput.addEventListener('change', updateButtonState);
-    refInput.addEventListener('input', updateButtonState);
     studentInput.addEventListener('change', updateButtonState);
-    studentInput.addEventListener('input', updateButtonState);
     compareBtn.addEventListener('click', handleCompare);
-
-    initScene();
-    updateButtonState();
 
     function initScene() {
       scene = new THREE.Scene();
@@ -260,17 +241,8 @@
     }
 
     function updateButtonState() {
-      const hasRef = refInput.files && refInput.files.length > 0;
-      const hasStudent = studentInput.files && studentInput.files.length > 0;
-      compareBtn.disabled = !(hasRef && hasStudent);
-
-      if (!hasRef && !hasStudent) {
-        statusEl.textContent = 'Waiting for files…';
-      } else if (!hasRef || !hasStudent) {
-        statusEl.textContent = 'Select both a reference and student file to enable comparison.';
-      } else {
-        statusEl.textContent = 'Ready to compare.';
-      }
+      compareBtn.disabled = !(refInput.files.length && studentInput.files.length);
+      statusEl.textContent = compareBtn.disabled ? 'Waiting for files…' : 'Ready to compare.';
     }
 
     async function handleCompare() {

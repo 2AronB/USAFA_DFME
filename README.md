@@ -6,7 +6,7 @@ This document outlines a lightweight approach to grading in-class CAD quizzes by
 
 ## Web app prototype: local geometry overlap grader
 
-`index.html` is a static, client-side tool (currently **v0.2.0**, shown in the page header) that lets you load an instructor reference mesh and a student mesh (STL or OBJ), auto-aligns/normalizes scale, computes a symmetric distance score, and highlights high-error regions in red on the overlapped view.
+`index.html` is a static, client-side tool that lets you load an instructor reference mesh and a student mesh (STL or OBJ), auto-aligns/normalizes scale, computes a symmetric distance score, and highlights high-error regions in red on the overlapped view.
 
 - **Privacy-friendly:** Files never leave the browser; everything runs locally with WebGL and WASM libraries loaded from CDNs.
 - **Supported formats:** STL and OBJ for now. Convert STEP to STL/OBJ using your CAD tool or `freecad-cli`/`occ` before loading.
@@ -15,12 +15,7 @@ This document outlines a lightweight approach to grading in-class CAD quizzes by
 ### How to run locally
 1. Clone or download the repo.
 2. Open `index.html` directly in a modern browser (Chrome/Edge/Firefox). No build step is required.
-3. Drop/upload your reference and student files (STL/OBJ). The **Compare geometry** button enables once both are present.
-4. Click **Compare geometry** to compute the symmetric distance score and visualize mismatches.
-
-Troubleshooting:
-- If the button does not enable, ensure JavaScript is allowed and both file inputs show a selected file (some browsers only fire `change` when a new file is picked).
-- Use an up-to-date browser with WebGL enabled; module/CDN loads can fail if offline.
+3. Drop/upload your reference and student files and click **Compare geometry**.
 
 ### How to host on GitHub Pages (free)
 1. Commit `index.html` (and any assets) to the default branch (e.g., `main`).
